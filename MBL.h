@@ -8,7 +8,6 @@
 #ifndef MBL_H_
 #define MBL_H_
 
-
 #include <avr/boot.h>
 #include <avr/pgmspace.h>
 #include <compat/deprecated.h>
@@ -46,6 +45,14 @@ typedef   signed short s16;
 #define	RECEIVE_COMPLETE_BIT	RXC1
 #define	UART_DATA_REG	UDR1
 
+// Pin de control de reedSwitch
+/* define pin for enter-self-prog-mode */
+#define PROG_PORT		PORTD
+#define PROG_PIN		PIND
+#define PROG_BIT		7
+#define PROG_DDR		DDRD
+#define PROG_MASK		0x80
+
 /* Constants for writing to UCSRC. */
 #define serUCSRC_SELECT					( ( u08 ) 0x00 )
 #define serEIGHT_DATA_BITS				( ( u08 ) 0x06 )
@@ -59,5 +66,40 @@ void pvb_bootLoader_avr109(void);
 
 #define BV(bit)			(1<<(bit))
 
+//----------------------------------------------------------------------------------------
+/* definitions for SPM control */
+#define	SPMCR_REG	SPMCSR
+#define	PAGESIZE	256
+#define	APP_END	122880
+#define	LARGE_MEMORY
+
+/* definitions for device recognition ATmega1284P */
+#define	PARTCODE	0x44
+#define	SIGNATURE_BYTE_1	0x1E
+#define	SIGNATURE_BYTE_2	0x97
+#define	SIGNATURE_BYTE_3	0x05
+
+#if defined(GET_LOCK_BITS)    /* avr-libc >= 1.2.5 */
+#define _GET_LOCK_BITS() boot_lock_fuse_bits_get(GET_LOCK_BITS)
+#define _GET_LOW_FUSES() boot_lock_fuse_bits_get(GET_LOW_FUSE_BITS)
+#define _GET_HIGH_FUSES() boot_lock_fuse_bits_get(GET_HIGH_FUSE_BITS)
+#define _GET_EXTENDED_FUSES() boot_lock_fuse_bits_get(GET_EXTENDED_FUSE_BITS)
+#endif /* defined(GET_LOCK_BITS) */
+
+#define _SET_LOCK_BITS(data) boot_lock_bits_set(~data)
+#define _ENABLE_RWW_SECTION() boot_rww_enable()
+
+#define _WAIT_FOR_SPM() boot_spm_busy_wait()
+
+#define _LOAD_PROGRAM_MEMORY(addr) pgm_read_byte_far(addr)
+
+#define _FILL_TEMP_WORD(addr,data) boot_page_fill(addr, data)
+#define _PAGE_ERASE(addr) boot_page_erase(addr)
+#define _PAGE_WRITE(addr) boot_page_write(addr)
+
+/* BLOCKSIZE should be chosen so that the following holds: BLOCKSIZE*n = PAGESIZE,  where n=1,2,3... */
+#define BLOCKSIZE PAGESIZE
+
+#define ADDR_T unsigned long
 
 #endif /* MBL_H_ */
