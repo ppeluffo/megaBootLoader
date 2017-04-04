@@ -36,14 +36,14 @@ typedef   signed short s16;
 #define	BRREG_VALUE	3
 
 /* definitions for UART control */
-#define	BAUD_RATE_LOW_REG	UBRR1L
-#define	UART_CONTROL_REG	UCSR1B
+#define	BAUD_RATE_LOW_REG		UBRR1L
+#define	UART_CONTROL_REG		UCSR1B
 #define	ENABLE_TRANSMITTER_BIT	TXEN1
-#define	ENABLE_RECEIVER_BIT	RXEN1
-#define	UART_STATUS_REG	UCSR1A
+#define	ENABLE_RECEIVER_BIT		RXEN1
+#define	UART_STATUS_REG			UCSR1A
 #define	TRANSMIT_COMPLETE_BIT	TXC1
 #define	RECEIVE_COMPLETE_BIT	RXC1
-#define	UART_DATA_REG	UDR1
+#define	UART_DATA_REG			UDR1
 
 // Pin de control de reedSwitch
 /* define pin for enter-self-prog-mode */
@@ -66,10 +66,21 @@ void pvb_bootLoader_avr109(void);
 
 #define BV(bit)			(1<<(bit))
 
+#define ADDR_T unsigned long
+
+//Here we calculate the wait period inside getch(). Too few cycles and the XBee may not be able to send the character in time. Too long and your sketch will take a long time to boot after powerup.
+#define CPU_SPEED	8000000
+#define MAX_CHARACTER_WAIT	15 //10 works. 20 works. 5 throws all sorts of retries, but will work.
+#define MAX_WAIT_IN_CYCLES ( ((MAX_CHARACTER_WAIT * 8) * CPU_SPEED) / BAUD_RATE )
+
+uint8_t incoming_page_data[256];
+uint8_t page_length;
+uint8_t retransmit_flag;
+
 //----------------------------------------------------------------------------------------
 /* definitions for SPM control */
 #define	SPMCR_REG	SPMCSR
-#define	PAGESIZE	256
+#define	PAGESIZE	256	// 256
 #define	APP_END	122880
 #define	LARGE_MEMORY
 
@@ -99,7 +110,5 @@ void pvb_bootLoader_avr109(void);
 
 /* BLOCKSIZE should be chosen so that the following holds: BLOCKSIZE*n = PAGESIZE,  where n=1,2,3... */
 #define BLOCKSIZE PAGESIZE
-
-#define ADDR_T unsigned long
 
 #endif /* MBL_H_ */

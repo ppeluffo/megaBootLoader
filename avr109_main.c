@@ -27,13 +27,35 @@
  *
  *  Si quiero grabar esto junto con el programa ppal, debo hacer un cat de ambos en un archivo, y
  *  borrar el registro de fin de archivo que queda en el medio.
+ *  ( lo hace el script makeBootLoader.sh )
  *
+ *  avrdude -c avr109 -p m1284p -P /dev/ttyUSB0 -b 9600 -U flash:w:"/home/pablo/Spymovil/workspace/sp5KV5/Release/sp5KV5.hex":a
  *
- *  avrdude -c avr109 -p m1284p -P /dev/ttyUSB0 -b 115200 -U flash:w:"/home/pablo/Spymovil/workspace/sp5KV5/Release/sp5KV5.hex":a
+ *  avrdude -c avr109 -p m1284p -P /dev/rfcomm0 -b 9600 -U flash:w:"/home/pablo/Spymovil/workspace/sp5KV5/Release/sp5KV5.hex":a -v
+ *
+ *  Grabacion en el DLG:
+ *  El bootloader funciona correctamente si se trabaja por medio del puerto serial /dev/ttyUSBx.
+ *  Cuando lo usamos a traves del BT no funciona bien.
+ *
+ *  Un problema que veo es que el avrdude luego de realizar una operacion manda un commando "E" que hace que
+ *  el datalogger entre en modo normal. Cuando quiero dar un nuevo comando, ya no lo va a reconocer.
+ *  Una alternativa es usar el minicom, resetear el dlg y salir del minicom con CTL-ALT-Q de modo de no enviar
+ *  un comando de salida/reset.
+ *
+ *  Cuando doy el comando por BT de leer los fuses, funciona bien por BT.
+ *  avrdude -c avr109 -p m1284p -P /dev/rfcomm1 -b 115200 -U lfuse:r:low_fuse_val.hex:h -U hfuse:r:high_fuse_val.hex:h -v -v -v -v
+ *
+ *  Cuando a continuacion doy el comando de grabar la memoria, ( por ttyUSB funciona bien ), no funciona por BT.
+ *  Podemos pensar que hay un tema de troughtput, pero el problema es que no responde al primer comando.
+ *  A [00][00]
+ *  La prueba realizada es hacer un null-modem en el dlg entre el BT y el serial y probar con 2 minicoms transferir
+ *  archivos.
+ *  Se hace sin problema lo que significa que no habria problema de troughput del BT.
+ *
  *
  */
 
-#include <MBL.h>
+#include "avr109.h"
 
 void (*funcptr)( void ) = 0x0000; // Set up function pointer to RESET vector.
 unsigned char BlockLoad(unsigned int size, unsigned char mem, ADDR_T *address);
@@ -42,6 +64,8 @@ void BlockRead(unsigned int size, unsigned char mem, ADDR_T *address);
 //------------------------------------------------------------------------------------
 int main(void)
 {
+
+u08 progSignal;
 
 	cli();
 	asm volatile ("clr __zero_reg__");
@@ -56,9 +80,20 @@ int main(void)
 	MCP_init();
 	UART_init();
 
+	/* Branch to bootloader or application code? */
+	progSignal = ( ( PROG_PIN & _BV(PROG_BIT) ) >> PROG_BIT);
+	pvb_sendchar('a');
+	pvb_sendchar('v');
+	pvb_sendchar('r');
+	pvb_sendchar('1');
+	pvb_sendchar('0');
+	pvb_sendchar('9');
+	pvb_sendchar('_');
+	pvb_sendchar(0x30 + progSignal);
+	pvb_sendchar('\r');
+	pvb_sendchar('\n');
 
-    /* Branch to bootloader or application code? */
-    if( ( ( PROG_PIN & _BV(PROG_BIT) ) >> PROG_BIT)  == 1 ) // If PROGPIN is pulled low, enter programmingmode.
+    if( progSignal == 1 ) // If PROGPIN is pulled high, enter programmingmode.
     {
 
     	pvb_sendchar('B');
@@ -71,8 +106,23 @@ int main(void)
     	pvb_sendchar('d');
     	pvb_sendchar('e');
     	pvb_sendchar('r');
+    	pvb_sendchar(' ');
+    	pvb_sendchar('R');
     	pvb_sendchar('0');
+    	pvb_sendchar('1');
+    	pvb_sendchar(' ');
+    	pvb_sendchar('@');
+    	pvb_sendchar(' ');
+    	pvb_sendchar('2');
+    	pvb_sendchar('0');
+    	pvb_sendchar('1');
     	pvb_sendchar('7');
+    	pvb_sendchar('/');
+    	pvb_sendchar('0');
+    	pvb_sendchar('4');
+    	pvb_sendchar('/');
+    	pvb_sendchar('0');
+    	pvb_sendchar('4');
     	pvb_sendchar('\r');
     	pvb_sendchar('\n');
 
@@ -114,6 +164,7 @@ ADDR_T address;
 			{ // NOTE: Here we use address as a byte-address, not word-address, for convenience.
 				_WAIT_FOR_SPM();
 				_PAGE_ERASE( address );
+
 			}
 			pvb_sendchar('\r'); // Send OK back.
 
